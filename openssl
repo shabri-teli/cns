@@ -1,0 +1,96 @@
+mkdir alice 
+mksir bob
+1. go to alice and create random key n store in sym.key
+    openssl rand -out sym.key -hex 16
+    cat sym.key
+    
+2.create a file with plain.txt with data
+    cat >plain.txt 
+    
+3. encrpypt plain.txt using aes 128 alogo in cbc mode  to ciphertxt
+    openssl enc -aes-128-cbc  -in cipher.txt -out cipher.txt -kfile sym.key
+    
+4.creating 2048 priv key rsa
+    openssl genrsa -out alicepriv.key 2048
+    
+5.create pub key usng priv key
+    openssl rsa -in alicepriv.key -pubout> alicepub.key
+    
+6.genereate and repeate5 n 6 steps for bob
+     openssl genrsa -out bobpriv.key 2048
+    openssl rsa -in bobpriv.key -pubout> bobpub.key
+    
+7.Alice and bob exchange thier public key
+     cp bobpub.key ../alice/bobpub.key
+     ls ../alice/
+     cd ../alice
+     cp alicepub.key ../bob/alicepub.key
+     ls ../bob
+     
+8.alice sends cipher text to bob 
+    cp cipher.txt ../bob/cipher.txt
+    cd ../bob
+    ls
+    
+9.alice encrypts sym key using the public key of bob (store in sym.enc.key)
+    openssl rsautl -encrypt -in sym.key -out sym.enc.key -inkey bobpub.key -pubin
+  
+10. Bob decrypts sym.enc.key using his private key n stores in sym.dec.key
+    alice send sym.enc.key to bob
+    cp sym.enc.key ../bob/sym.enc.key
+    cd ../bob
+    ls
+    openssl rsautl -decrypt -in sym.enc.key -out sym.dec.key -inkey bobpriv.key 
+    
+11.bob decrypts cipher txt using sym key and stores op in cipher.dec.txt
+    openssl enc -d -aes-128-cbc -in cipher.txt -out cipher.dec.txt -kfile sym.dec.key
+
+INTEGRITY________________________________
+1. compute sha512 hash on plain.txt and store in hash.txt 
+    openssl dgst -out hash.txt -sha512 plain.txt
+    cat hash.txt
+    
+2.verifying the hash 
+    openssl dgst -out hashcheck.txt -sha512 plain.txt
+   diff hashcheck.txt hash.txt
+   
+3. Making some chnage sin plain.txt
+    openssl dgst -out hashcheck.txt -sha512 plain.txt
+
+
+Authentication check__________________
+1.computing Mac on plain.txt using sha512 and store in plain.mac
+  openssl dgst -out plain.mac -hmac -sha512 plain.txt
+  
+  openssl dgst -sha512 -sign alicepriv.key -out alicemacsign.sign plain.txt
+  
+2.verifying the mac 
+    openssl -sha512 verify alicepub.key -signature alicemacsign.sign plain.txt
+    
+3. making some chnages in plain txt to see verification
+    openssl dgst -sha512 -verify alicepub.key -signature alicemacsign.sign plain.txt
+    
+    
+DIGITAL SIGATU?re-----------
+1.alice creates sha512 hash on plain.txt and signs it using her private key .store signed hash in file hash.sign
+      openssl dgst -out hash.sign -sign alicepriv.key -sha512 plain.txt
+      ls
+      ct hash.sign
+      
+ 2.align sends plain text and hash sign to bob
+      cp plain.txt ../bob/plain.txt
+      hash.sign ../bob/hash.sign
+      cd ../bob
+      ls
+      
+ 3.bob verifies the signature using the public key of alice
+      openssl dgst -sha512 -verify ../alice/alicepub.key -signature hash.sign plain.txt
+      
+      {{{{{{verified ok}}}}}
+      
+ 4.check that the verifivation fauls if the file plain.txt is modified
+      cat plain.txt
+       vi plain.txt
+       cat plain.txt
+       
+       openssl dgst -sha512 -verify ../alice/alicepub.key -signature hash.sign plain.txt
