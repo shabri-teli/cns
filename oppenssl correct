@@ -1,0 +1,96 @@
+________________________________________________________Confidentiality___________________________________________________________
+
+mkdir alice
+mkdir bob
+
+==> In alice
+1.Genrate a symmetric key (symm.key)
+    openssl rand -hex 16 > symm.key
+    
+2.Create a  plain text (plain.txt)
+    cat > plain.txt  wtech cn...
+  
+3.Encrypt plain.txt to cipher.txt
+    openssl enc -aes-128-cbc -e -in plain.txt -out cipher.txt -pass file:symm.key
+    
+4.Generate Private key for alice (alicepriv.key)
+    openssl genrsa -out alicepriv.key 2048
+  
+5.generate pub key using private key
+    openssl rsa -in alicepriv.key -pubout -out alicepub.key
+   
+==> In bob
+ 
+6.Generate Private key for bob (bobpriv.key)
+    openssl genrsa -out alicepriv.key 2048
+  
+7.generate pub key using private key
+    openssl rsa -in bobpriv.key -pubout -out bobpub.key
+    
+==> In alice
+8.copy or send cipher txt to bob
+    cp cipher.txt ../bob/
+
+9.Exachange boths pub key
+==> In alice        
+    cp alicepub.key ../bob
+==> In bob          
+    cp bobpub.key ../alice
+
+10.alice encrypts cipher txt using bobs pub key and generate symm.enc.key
+    openssl rsautl -encrypt -inkey bobpub.key  -pubin -in symm.key -out symm.enc.key
+    
+sends enc key
+
+cp symm.enc.key ../bob
+
+11.Bob decrypts the symm.enc.key
+    openssl rsautl  -decrypt -inkey bobpriv.key -in symm.enc.key -out symm.dec.key
+    
+12. decrypts ciphertext
+    openssl enc -aes-128-cbc -d -in cipher.txt -out cipher.dec.txt -pass file:symm.dec.key
+    
+
+______________________________________________________________________________________________________________________________________________
+
+_________________________________________________________INTEGRITY_________________________________________________________
+13.freate hash file using sha512 algo
+    openssl dgst -sha512 plain.txt > hash.txt
+    
+14.Make changes in plain.txt file
+
+15.redirect the changed file to hash file
+    openssl dgst -sha512 plain.txt >hashchanged.txt
+    
+16.find difference between the 2 hash files 
+    diff  hash.txt hashchanged.txt 
+ 
+______________________________________________________________________________________________________________________________________________
+
+_______________________________________________________AUTHENTICATION___________________________________________________________
+
+17.computing MAC on plain.txt using sha512 and store in plain.mac
+    openssl dgst  -out plain.mac -hmac  -sha512 plain.txt  
+    
+  
+signs'
+	openssl dgst -sha512 -sign alicepriv.key -out alicemacsign.sign plain.txt
+18.verifying mac    
+    openssl dgst -sha512 -verify alicepub.key -signature alicemacsign.sign plain.txt
+    
+19.making some changes n see the verification fail
+    
+______________________________________________________________________________________________________________________________________________
+
+________________________________________________________ DIGITAL SIGNATURE__________________________________________________________
+
+20.alice creates sha512 hash on plain.txt and sign it using her private key .store signed hash in file hash.sign 
+    openssl dgst -out hash.sign -sign alicepriv.key -sha512 plain.txt 
+    
+21.alice sneds plain.txt and hashed sign hash.sign to bob
+    cp plain.txt ../bob
+    cp hash.sign ../bob
+    
+22.bob verifies the signature using public key of alice 
+    openssl dgst -sha512 -verify alicepub.key  -signature hash.sign plain.txt
+______________________________________________________________________________________________________________________________________________
